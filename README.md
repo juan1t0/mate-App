@@ -1,1 +1,1 @@
-# mate-App
+# Computación Paralela y Distribuida
