@@ -9,7 +9,8 @@ int* new_array(int* ptr_last){
 }
 
 void realloc_array(int * arr, unsigned int newSize, int * ptr_last){
-    arr = realloc(arr,newSize * sizeof(int));
+    arr = (int*) realloc(arr,newSize);
+    
     if((ptr_last - arr) > newSize)
         ptr_last = arr + (newSize-1);
 }
@@ -19,7 +20,8 @@ bool array_is_empty(int *arr, int* ptr_last){
 }
 
 void push_element(int* arr, int element, int *ptr_last){
-    unsigned int size = ptr_last - arr;
+    printf("%d %d asd",arr[0],ptr_last[0]);
+    unsigned int size = ptr_last - arr + 1;
     realloc_array(arr,size+1,ptr_last);    
     *ptr_last = element;
 }
@@ -32,7 +34,7 @@ int get_element(int* arr, int index, int *ptr_last){
 
 void set_element(int* arr, int index, int element, int *ptr_last){
     unsigned int size = ptr_last - arr;
-    if(index >= size) return -1;
+    if(index >= size) return;
     *(arr + index) = element;
 }
 
@@ -40,9 +42,9 @@ void print_array(int* arr, int *ptr_last){
     unsigned int size = ptr_last - arr;
     printf("[");
     if(!array_is_empty(arr,ptr_last)){
-        printf("%f", *(arr));
+        printf("%d", *(arr));
         for(int i=1; i<size; ++i) {
-            printf(", %f",*(arr + i));
+            printf(", %d",*(arr + i));
         }
     }
     printf("]\n");
