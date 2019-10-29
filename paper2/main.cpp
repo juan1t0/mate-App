@@ -61,17 +61,13 @@ int main (int argc, char** argv){
  // Inicializar
  /////////////////////////////////////////////////////////////////////////////
 
-    std::vector< std::pair<int,int> >  temp;
-    for (int i = 0; i < cant_nodes; ++i){
-        graph.push_back (temp);
- // ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^  Con Poco hicimos una manera para rezize vector, si recuerdas lo cambias
-        distances.push_back(INFINITO);
-        node_predecessor.push_back(-1);
-    }
+    graph.assign(cant_nodes,std::vector<std::pair<int,int> >(0));
+    distances.assign(cant_nodes,INFINITO);
+    node_predecessor.assign(cant_nodes,-1);
 
-    for (int i = 0; i < cant_nodes; ++i){
+    for (unsigned int i = 0; i < cant_nodes; ++i){
         int weight;
-        int node_aux;
+        unsigned int node_aux;
         int d = 1 + (rand() % MAX_DEGREE);
         
         for (int j = 0; j < d; ++j){
@@ -85,18 +81,18 @@ int main (int argc, char** argv){
             cant_edges++;
         }
     }
- // ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ Puede mejorar, o variar para generar RMAT o para recivirlo externamente
+ // ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ Puede mejorar, o variar para generar RMAT o para recibirlo externamente
 
     uint cant_buckets = (MAX_DISTANCE / delta) +1;
 
     std::vector< int >  temp2;
-    for (int i = 0; i < cant_buckets; ++i)
+    for (unsigned int i = 0; i < cant_buckets; ++i)
         buckets.push_back(temp2);
 
     buckets[0].push_back(node_source);
     distances[node_source] = 0;
 
-    for (int i = 0; i < cant_nodes; ++i)
+    for (unsigned int i = 0; i < cant_nodes; ++i)
         buckets[cant_buckets].push_back (i);
     
  /////////////////////////////////////////////////////////////////////////////
@@ -106,7 +102,7 @@ int main (int argc, char** argv){
     int thread_cant_nodes = ceil ((double)cant_nodes / (double)cant_threads);    
 
     #pragma omp parallel//num_threads(cant_threads)
-    for(int i = 0; i < cant_nodes; i += thread_cant_nodes){
+    for(unsigned int i = 0; i < cant_nodes; i += thread_cant_nodes){
         #pragma omp task
         thread_work (i,i + (thread_cant_nodes-1) );
     }
@@ -117,8 +113,8 @@ int main (int argc, char** argv){
  // Finalize
  /////////////////////////////////////////////////////////////////////////////
 
-    for(size_t i = 0; i < cant_nodes; ++i)
-        printf ("%d : (%d, %d)", i, node_predecessor[i], distances[i]);
+    for(unsigned int i = 0; i < cant_nodes; ++i)
+        printf ("%o : (%d, %d)", i, node_predecessor[i], distances[i]);
 
     return 0;
 }
@@ -136,8 +132,8 @@ void thread_work (
             std::vector<int> aux_bucket;
             
             #pragma omp for
-            for (int u = 0; u < buckets[k].size (); ++u){ //// [ solo nodos entre first y last]
-                for (int v = 0; v < graph[u].size (); ++v){
+            for (size_t u = 0; u < buckets[k].size (); ++u){ //// [ solo nodos entre first y last]
+                for (size_t v = 0; v < graph[u].size (); ++v){
                     /*relax*/
                     if (relax (buckets[k][u], graph[u][v].first)){
                         aux_bucket.push_back (graph[u][v].first);
@@ -147,8 +143,8 @@ void thread_work (
             //Intersección
             std::vector<int> temp_bucket(buckets[k]);
             buckets[k].clear ();
-            for (int i = 0; i < temp_bucket.size (); ++i){
-                for (int j = 0; j < aux_bucket.size (); ++j){
+            for (size_t  i = 0; i < temp_bucket.size (); ++i){
+                for (size_t j = 0; j < aux_bucket.size (); ++j){
                     if (temp_bucket[i] == aux_bucket[j])
                         buckets[k].push_back (temp_bucket[i]);
                 }
@@ -166,7 +162,7 @@ bool relax (int u, int v){
 
     if (new_bucket < old_bucket){
         buckets[new_bucket].push_back (v);
-        for (int i = 0; i < buckets[old_bucket].size (); ++i){
+        for (size_t i = 0; i < buckets[old_bucket].size (); ++i){
             if (buckets[old_bucket][i] == v){
                 buckets[old_bucket].erase (buckets[old_bucket].begin () + i);
                 break;

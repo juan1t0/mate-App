@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <omp.h>
+#include <time.h>
 
 #define MAX_WEIGHT 10
 #define MAX_DEGREE 10
@@ -36,19 +37,18 @@
 
 void Get_args(int argc,char* argv[],int* global_cant_nodes,int* global_root_node,int* local_cant_nodes,int *delta,int my_rank,int p,MPI_Comm comm){
 
-    if(my_rank ==0){
-        if(argc != 4){
+    
+    if(argc != 4){
 //            fflush(stderr);
-            *global_cant_nodes = -1;
-        }else{
-            *global_cant_nodes = atoi(argv[1]);
-            *global_root_node = atoi(argv[2]);
-            *delta = atoi(argv[3]);
-        }
+        *global_cant_nodes = -1;
+    }else{
+        *global_cant_nodes = atoi(argv[1]);
+        *global_root_node = atoi(argv[2]);
+        *delta = atoi(argv[3]);
     }
-    /*MPI_Bcast(global_cant_nodes,1,MPI_INT,0,comm);
+    MPI_Bcast(global_cant_nodes,1,MPI_INT,0,comm);
     MPI_Bcast(global_root_node,1,MPI_INT,0,comm);
-    MPI_Bcast(delta,1,MPI_INT,0,comm);*/
+    MPI_Bcast(delta,1,MPI_INT,0,comm);
     if(*global_cant_nodes <= 0){
         MPI_Finalize();
         exit(-1);
@@ -67,6 +67,8 @@ void updateBuks(int *new_buks, int *old_buks, int **Bucks, int **last_of_buck, i
 
 int main(int argc, char** argv){
     int my_rank, comm_sz;
+    srand(time(NULL));
+
     double start, finish, loc_elapsed, elapsed;
     MPI_Comm comm;
 
@@ -83,7 +85,9 @@ int main(int argc, char** argv){
     int *local_nodes_v;         // Arreglo que contendrÃ¡ el identificador (indice) del nodo destino (v)
     int *local_weights;         // Arreglo que contendrÃ¡ el peso o distancia entre el nodo u y v
     
-    Get_args(argc, argv, &global_cant_nodes, &global_root, &local_cant_nodes, &delta, my_rank, comm_sz, comm);
+    
+    if(my_rank==0)
+        Get_args(argc, argv, &global_cant_nodes, &global_root, &local_cant_nodes, &delta, my_rank, comm_sz, comm);
     
     /**Arreglos que contendran todas las aristas*/
     int *temp_global_nodes_u, *temp_global_nodes_v, *temp_global_weights;
@@ -94,30 +98,29 @@ int main(int argc, char** argv){
 
     if(my_rank == 0){
 
-        temp_global_nodes_u = new_array(last_global_nodes_u);
-        temp_global_nodes_v = new_array(last_global_nodes_v);
-        temp_global_weights = new_array(last_global_weights);
+        temp_global_nodes_u = new_array(&last_global_nodes_u);
+        temp_global_nodes_v = new_array(&last_global_nodes_v);
+        temp_global_weights = new_array(&last_global_weights);
         int k,v,w;
         /**CreaciÃ³n del Grafo**/
         for(int i=0;i<global_cant_nodes;++i){
-            k = 1 + (random() % MAX_DEGREE);
+            k = 1 + (rand() % MAX_DEGREE);
             for (int j = 0; j < k; ++j){
                 v = random() % global_cant_nodes;
                 while(v == i)
-                    v = random() % global_cant_nodes;
-                w = 1+(random()%MAX_WEIGHT);
-                printf("%d %d %d \n",global_cant_nodes, global_root, delta);
-                push_element(temp_global_nodes_u, i, last_global_nodes_u);
-                printf("%d %d %d \n",global_cant_nodes, global_root, delta);
-                push_element(temp_global_nodes_v, v, last_global_nodes_v);
-                push_element(temp_global_weights, w, last_global_weights);
+                    v = rand() % global_cant_nodes;
+                w = 1+(rand()%MAX_WEIGHT);
+                push_element(temp_global_nodes_u, i, &last_global_nodes_u);
+                push_element(temp_global_nodes_v, v, &last_global_nodes_v);
+                push_element(temp_global_weights, w, &last_global_weights);
                 
                 
             }
         }
         /*****************************/
 
-        truly_cant_elements = last_global_weights  - temp_global_nodes_u;
+        truly_cant_elements = last_global_weights  - temp_global_weights;
+        printf("%d \n",truly_cant_elements);
         local_cant_edges = truly_cant_elements / comm_sz;
         MPI_Bcast(&local_cant_edges,1,MPI_INT,0,comm);
         MPI_Scatter(temp_global_nodes_u,local_cant_edges,MPI_INT,
