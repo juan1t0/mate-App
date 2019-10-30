@@ -166,53 +166,6 @@ int main (int argc, char** argv){
     return 0;
 }
 
-/////No esta usando los indices, se me olvido, revisalo
-void thread_work (
-        int first_index         /*indice de inicio del bloque de nodos*/, 
-        int last_index          /*indice de final del bloque de nodos*/,
-        int &k){
-    
-    //int k=0;
-    //#pragma omp parallel num_threads(cant_threads) shared(k)
-    printf("((%d))\n",omp_get_thread_num());
-    for (; k < (MAX_DISTANCE/delta); ){         /* Epoca*/
-        /*process*/
-        while ( !buckets[k].empty() ){                 /*Fase*/
-            std::vector<int> aux_bucket;
-            
-            //#pragma omp for
-            for (size_t u = 0; u < buckets[k].size (); ++u){ //// [ solo nodos entre first y last]
-                
-                if(buckets[k][u] >= first_index && buckets[k][u] <= last_index){
-                    for (size_t v = 0; v < graph[u].size (); ++v){
-                        /*relax*/
-                        printf("%d: %d\n",omp_get_thread_num(),buckets[k][u]);
-                        if (relax (buckets[k][u], graph[u][v].first)){
-                            aux_bucket.push_back (graph[u][v].first);
-                        }
-                    }
-                }
-            }
-            //Intersección
-            std::vector<int> temp_bucket(buckets[k]);
-            buckets[k].clear ();
-            for (size_t  i = 0; i < temp_bucket.size (); ++i){
-                for (size_t j = 0; j < aux_bucket.size (); ++j){
-                    if (temp_bucket[i] == aux_bucket[j])
-                        #pragma omp critical
-                        buckets[k].push_back (temp_bucket[i]);
-                }
-            }
-        }
-        #pragma omp single
-        {k++;
-            while(buckets[k].empty() && k<buckets.size()){
-                k++;
-            }
-        }
-    }
-}
-
 void deltaStepping(){
     int k=0;
     #pragma omp parallel num_threads(cant_threads) shared(node_ranks, k, buckets, distances, node_predecessor, graph, COUT, delta, cant_threads) default(none)
