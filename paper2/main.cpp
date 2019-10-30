@@ -37,9 +37,6 @@
 typedef unsigned int uint;
 
 int cant_threads;
-/*uint cant_nodes;
-uint cant_edges;
-uint node_source;*/
 int delta;
 
 class funtor1{
@@ -62,10 +59,10 @@ bool relax (int u, int v);
 void printGraph();
 
 int main (int argc, char** argv){
-    /*if (argc != 5){
+    if(argc != 5){
         printf ("Incorrect parameters \n");
         return 0;
-    }*/
+    }
     
     cant_threads        = atoi (argv[1]);
     uint cant_nodes     = atoi (argv[2]);
@@ -73,18 +70,7 @@ int main (int argc, char** argv){
     uint node_source    = atoi (argv[3]);
     delta               = atoi (argv[4]);
 
-    //std::cin>>cant_threads>>cant_nodes>>cant_edges>>node_source>>delta;
     srand(0);
-    /*graph.assign(cant_nodes,std::vector<std::pair<int,int> >(0));
-    int a,b;
-    for(uint i=0; i<cant_edges; ++i){
-        std::cin>>a>>b;
-        graph[a].push_back(std::make_pair(b,rand()%MAX_WEIGHT+1));
-    }
-    distances.assign(cant_nodes,INFINITO);
-    node_predecessor.assign(cant_nodes,-1);
-
-    COUT<<cant_threads<<" "<<cant_nodes<<" "<<cant_edges<<" "<<node_source<<" "<<delta<<ENDL;*/
 
  /////////////////////////////////////////////////////////////////////////////
  // Inicializar
@@ -120,12 +106,6 @@ int main (int argc, char** argv){
     for(size_t i=0; i<ranks.size(); ++i){
         node_ranks[ranks[i].first]=i;
     }
-    
-    /*printGraph();
-    std::cout<<"|"<<graph[8].size()<<"|"<<std::endl;*/
- // ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ Puede mejorar, o variar para generar RMAT o para recibirlo externamente
-
-    
 
     uint cant_buckets = (MAX_DISTANCE / delta) +1;
 
@@ -145,16 +125,7 @@ int main (int argc, char** argv){
 
     int thread_cant_nodes = ceil ((double)cant_nodes / (double)cant_threads); 
     int k=0;
-
-    /*#pragma omp parallel num_threads(cant_threads)
-    {
-        #pragma omp task shared(k)
-        thread_work (omp_get_thread_num()*thread_cant_nodes, (omp_get_thread_num()*thread_cant_nodes )+ (thread_cant_nodes-1), k);
-    }
-    //#pragma omp taskwait
-    std::cout<<"Holis"<<ENDL;*/
     deltaStepping();
-    //#pragma omp barrier
 
  /////////////////////////////////////////////////////////////////////////////
  // Finalize
@@ -173,9 +144,6 @@ void deltaStepping(){
         /*process*/
         while ( !buckets[k].empty() ){                 /*Fase*/
             std::vector<int> aux_bucket;
-            
-            //#pragma omp parallel for default(none) shared(k,buckets,distances,node_predecessor,graph,COUT,delta,aux_bucket) num_threads(cant_threads)
-            //#pragma omp for 
             for (size_t u = 0; u < buckets[k].size (); ++u){ //// [ solo nodos entre first y last]
                 int actual_u = buckets[k][u] ;
                 if(node_ranks[actual_u]%cant_threads == omp_get_thread_num()){
@@ -185,7 +153,6 @@ void deltaStepping(){
                         if(graph[actual_u][actual_v].second<delta ||
                          (graph[actual_u][actual_v].second + distances[actual_v])/delta == k){
                             if (relax (actual_u, actual_v)){
-                                //#pragma omp critical
                                 aux_bucket.push_back (actual_v);
                             }
                         }
@@ -194,8 +161,6 @@ void deltaStepping(){
             }
             //}
             //Intersección
-            //#pragma omp single
-            //#pragma omp barrier
             {
                 std::vector<int> temp_bucket(buckets[k]);
                 #pragma omp single
