@@ -25,6 +25,7 @@
 #include <omp.h>
 #include <utility>
 #include <math.h>
+#include <algorithm>
 
 #define MAX_WEIGHT 10
 #define MAX_DEGREE 10
@@ -36,15 +37,24 @@
 typedef unsigned int uint;
 
 int cant_threads;
-uint cant_nodes;
+/*uint cant_nodes;
 uint cant_edges;
-uint node_source;
+uint node_source;*/
 int delta;
+
+class funtor1{
+public:
+    bool operator ()(std::pair<int,int> a, std::pair<int,int> b){
+        return a.second<b.second;
+    } 
+};
 
 std::vector< std::vector< std::pair<int,int> > > graph;         // Matriz dispersa, cada nodo contiene sus aristas (destiny,weight)
 std::vector< int > distances;
 std::vector< int > node_predecessor;
 std::vector< std::vector< int > > buckets;                      // Contenedor de nodos (indices al grafo)
+std::vector< std::pair<int,int> > ranks;
+std::vector<int> node_ranks;
 
 void thread_work (int first_index, int last_index, int &k);
 void deltaStepping();
@@ -56,28 +66,34 @@ int main (int argc, char** argv){
         printf ("Incorrect parameters \n");
         return 0;
     }*/
-    /*cant_threads        = atoi (argv[1]);
+    
+    cant_threads        = atoi (argv[1]);
     uint cant_nodes     = atoi (argv[2]);
     uint cant_edges     = 0;
     uint node_source    = atoi (argv[3]);
-    delta               = atoi (argv[4]);*/
+    delta               = atoi (argv[4]);
 
-    std::cin>>cant_threads>>cant_nodes>>cant_edges>>node_source>>delta;
+    //std::cin>>cant_threads>>cant_nodes>>cant_edges>>node_source>>delta;
     srand(0);
-    graph.assign(cant_nodes,std::vector<std::pair<int,int> >(0));
+    /*graph.assign(cant_nodes,std::vector<std::pair<int,int> >(0));
     int a,b;
     for(uint i=0; i<cant_edges; ++i){
         std::cin>>a>>b;
         graph[a].push_back(std::make_pair(b,rand()%256+1));
     }
+    distances.assign(cant_nodes,INFINITO);
+    node_predecessor.assign(cant_nodes,-1);
 
-    COUT<<cant_threads<<" "<<cant_nodes<<" "<<cant_edges<<" "<<node_source<<" "<<delta<<ENDL;
+    COUT<<cant_threads<<" "<<cant_nodes<<" "<<cant_edges<<" "<<node_source<<" "<<delta<<ENDL;*/
 
  /////////////////////////////////////////////////////////////////////////////
  // Inicializar
  /////////////////////////////////////////////////////////////////////////////
 
-    /*graph.assign(cant_nodes,std::vector<std::pair<int,int> >(0));
+    graph.assign(cant_nodes,std::vector<std::pair<int,int> >(0));
+    for(uint i=0; i<cant_nodes; ++i){
+        ranks.push_back(std::make_pair(i,0));
+    }
     distances.assign(cant_nodes,INFINITO);
     node_predecessor.assign(cant_nodes,-1);
 
@@ -85,7 +101,7 @@ int main (int argc, char** argv){
         int weight;
         uint node_aux;
         int d = 1 + (rand() % MAX_DEGREE);
-        
+        ranks[i].second+=d;
         for (int j = 0; j < d; ++j){
             weight = 1 + (rand () % MAX_WEIGHT);
             node_aux = rand () % cant_nodes;
@@ -96,10 +112,20 @@ int main (int argc, char** argv){
             graph[node_aux].push_back (std::make_pair (i, weight) );
             cant_edges++;
         }
-    }*/
+    }
+    funtor1 funt;
+    std::sort(ranks.begin(),ranks.end(),funt);
+    node_ranks.assign(cant_nodes,0);
+    
+    for(size_t i=0; i<ranks.size(); ++i){
+        node_ranks[ranks[i].first]=i;
+    }
+    
     /*printGraph();
     std::cout<<"|"<<graph[8].size()<<"|"<<std::endl;*/
  // ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ Puede mejorar, o variar para generar RMAT o para recibirlo externamente
+
+    
 
     uint cant_buckets = (MAX_DISTANCE / delta) +1;
 
@@ -109,7 +135,7 @@ int main (int argc, char** argv){
 
     buckets[0].push_back(node_source);
     distances[node_source] = 0;
-
+    
     for (uint i = 0; i < cant_nodes; ++i)
         buckets[cant_buckets].push_back (i);
     
@@ -128,7 +154,7 @@ int main (int argc, char** argv){
     //#pragma omp taskwait
     std::cout<<"Holis"<<ENDL;*/
     deltaStepping();
-    #pragma omp barrier
+    //#pragma omp barrier
 
  /////////////////////////////////////////////////////////////////////////////
  // Finalize
@@ -189,27 +215,31 @@ void thread_work (
 
 void deltaStepping(){
     int k=0;
-    #pragma omp parallel num_threads(cant_threads) shared(k, buckets, distances, node_predecessor, graph, COUT, delta) default(none)
+    #pragma omp parallel num_threads(cant_threads) shared(node_ranks, k, buckets, distances, node_predecessor, graph, COUT, delta, cant_threads) default(none)
     for (; k < (MAX_DISTANCE/delta); ){         /* Epoca*/
         /*process*/
         while ( !buckets[k].empty() ){                 /*Fase*/
             std::vector<int> aux_bucket;
             
             //#pragma omp parallel for default(none) shared(k,buckets,distances,node_predecessor,graph,COUT,delta,aux_bucket) num_threads(cant_threads)
-            #pragma omp for
+            //#pragma omp for 
             for (size_t u = 0; u < buckets[k].size (); ++u){ //// [ solo nodos entre first y last]
                 int actual_u = buckets[k][u] ;
-                //if(actual_u >= first_index && actual_u <= last_index){
-                    for (size_t v = 0; v < graph[u].size (); ++v){
+                if(node_ranks[actual_u]%cant_threads == omp_get_thread_num()){
+                    for (size_t v = 0; v < graph[actual_u].size (); ++v){
                         /*relax*/
                         int actual_v = graph[actual_u][v].first;
-                        if (relax (actual_u, actual_v)){
-                            //#pragma omp critical
-                            aux_bucket.push_back (actual_v);
+                        if(graph[actual_u][actual_v].second<delta ||
+                         (graph[actual_u][actual_v].second + distances[actual_v])/delta == k){
+                            if (relax (actual_u, actual_v)){
+                                //#pragma omp critical
+                                aux_bucket.push_back (actual_v);
+                            }
                         }
                     }
-                //}
+                }                    
             }
+            //}
             //Intersección
             //#pragma omp single
             //#pragma omp barrier
@@ -226,6 +256,20 @@ void deltaStepping(){
             }
         }
 
+        for (size_t u = 0; u < buckets[k].size (); ++u){ //// [ solo nodos entre first y last]
+                int actual_u = buckets[k][u] ;
+                if(node_ranks[actual_u]%cant_threads == omp_get_thread_num()){
+                    for (size_t v = 0; v < graph[actual_u].size (); ++v){
+                        /*relax*/
+                        int actual_v = graph[actual_u][v].first;
+                        if(graph[actual_u][actual_v].second>=delta ||
+                         (graph[actual_u][actual_v].second + distances[actual_v])/delta != k){
+                            relax (actual_u, actual_v);
+                        }
+                    }
+                }                    
+            }
+
         #pragma omp single
         {
             k++;
@@ -238,29 +282,34 @@ void deltaStepping(){
 
 /// Revisa si debe tener una parte critica
 bool relax (int u, int v){
-    uint old_bucket = floor ((double)distances[v] / (double)delta);
+    uint old_bucket;
+    if(distances[v]!=INFINITO)
+        old_bucket = floor ((double)distances[v] / (double)delta);
+    else
+        old_bucket = buckets.size()-1;
     int temp = distances[v];
     int new_distance = distances[u] + graph[u][v].second;
     if(new_distance < distances[v]){
         #pragma omp critical
         {
-            distances[v] = new_distance;
-            node_predecessor[v]=u;
+            if(new_distance < distances[v]){
+                distances[v] = new_distance;
+                node_predecessor[v]=u;  
+            }
         }
     }
     uint new_bucket = floor ((double)distances[v] / (double)delta);
 
     if (new_bucket < old_bucket){
         #pragma omp critical
-        {
             buckets[new_bucket].push_back(v);
             for (size_t i = 0; i < buckets[old_bucket].size (); ++i){
                 if (buckets[old_bucket][i] == v){
+                    #pragma omp critical
                     buckets[old_bucket].erase (buckets[old_bucket].begin () + i);
                     break;
                 }
             }
-        }
     }
     return (temp != distances[v]);
 }
