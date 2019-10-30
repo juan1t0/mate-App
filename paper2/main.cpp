@@ -79,7 +79,7 @@ int main (int argc, char** argv){
     int a,b;
     for(uint i=0; i<cant_edges; ++i){
         std::cin>>a>>b;
-        graph[a].push_back(std::make_pair(b,rand()%256+1));
+        graph[a].push_back(std::make_pair(b,rand()%MAX_WEIGHT+1));
     }
     distances.assign(cant_nodes,INFINITO);
     node_predecessor.assign(cant_nodes,-1);
@@ -245,7 +245,8 @@ void deltaStepping(){
             //#pragma omp barrier
             {
                 std::vector<int> temp_bucket(buckets[k]);
-                buckets[k].clear ();
+                #pragma omp single
+                buckets[k].clear();
                 for (size_t  i = 0; i < temp_bucket.size (); ++i){
                     for (size_t j = 0; j < aux_bucket.size (); ++j){
                         if (temp_bucket[i] == aux_bucket[j])
