@@ -30,10 +30,15 @@
 #define MAX_DEGREE 10
 #define MAX_DISTANCE 1000
 #define INFINITO 10000
+#define ENDL std::endl
+#define COUT std::cout
 
 typedef unsigned int uint;
 
 int cant_threads;
+uint cant_nodes;
+uint cant_edges;
+uint node_source;
 int delta;
 
 std::vector< std::vector< std::pair<int,int> > > graph;         // Matriz dispersa, cada nodo contiene sus aristas (destiny,weight)
@@ -41,33 +46,44 @@ std::vector< int > distances;
 std::vector< int > node_predecessor;
 std::vector< std::vector< int > > buckets;                      // Contenedor de nodos (indices al grafo)
 
-void thread_work (int first_index, int last_index);
+void thread_work (int first_index, int last_index, int &k);
+void deltaStepping();
 bool relax (int u, int v);
+void printGraph();
 
 int main (int argc, char** argv){
-    if (argc != 5){
+    /*if (argc != 5){
         printf ("Incorrect parameters \n");
         return 0;
-    }
-    cant_threads        = atoi (argv[1]);
+    }*/
+    /*cant_threads        = atoi (argv[1]);
     uint cant_nodes     = atoi (argv[2]);
     uint cant_edges     = 0;
     uint node_source    = atoi (argv[3]);
-    delta               = atoi (argv[4]);
+    delta               = atoi (argv[4]);*/
 
-    srand (0);
+    std::cin>>cant_threads>>cant_nodes>>cant_edges>>node_source>>delta;
+    srand(0);
+    graph.assign(cant_nodes,std::vector<std::pair<int,int> >(0));
+    int a,b;
+    for(uint i=0; i<cant_edges; ++i){
+        std::cin>>a>>b;
+        graph[a].push_back(std::make_pair(b,rand()%256+1));
+    }
+
+    COUT<<cant_threads<<" "<<cant_nodes<<" "<<cant_edges<<" "<<node_source<<" "<<delta<<ENDL;
 
  /////////////////////////////////////////////////////////////////////////////
  // Inicializar
  /////////////////////////////////////////////////////////////////////////////
 
-    graph.assign(cant_nodes,std::vector<std::pair<int,int> >(0));
+    /*graph.assign(cant_nodes,std::vector<std::pair<int,int> >(0));
     distances.assign(cant_nodes,INFINITO);
     node_predecessor.assign(cant_nodes,-1);
 
-    for (unsigned int i = 0; i < cant_nodes; ++i){
+    for (uint i = 0; i < cant_nodes; ++i){
         int weight;
-        unsigned int node_aux;
+        uint node_aux;
         int d = 1 + (rand() % MAX_DEGREE);
         
         for (int j = 0; j < d; ++j){
@@ -80,41 +96,46 @@ int main (int argc, char** argv){
             graph[node_aux].push_back (std::make_pair (i, weight) );
             cant_edges++;
         }
-    }
+    }*/
+    /*printGraph();
+    std::cout<<"|"<<graph[8].size()<<"|"<<std::endl;*/
  // ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ Puede mejorar, o variar para generar RMAT o para recibirlo externamente
 
     uint cant_buckets = (MAX_DISTANCE / delta) +1;
 
     std::vector< int >  temp2;
-    for (unsigned int i = 0; i < cant_buckets; ++i)
+    for (uint i = 0; i < cant_buckets; ++i)
         buckets.push_back(temp2);
 
     buckets[0].push_back(node_source);
     distances[node_source] = 0;
 
-    for (unsigned int i = 0; i < cant_nodes; ++i)
+    for (uint i = 0; i < cant_nodes; ++i)
         buckets[cant_buckets].push_back (i);
     
  /////////////////////////////////////////////////////////////////////////////
  // Separación del trabajo
  /////////////////////////////////////////////////////////////////////////////
 
-    int thread_cant_nodes = ceil ((double)cant_nodes / (double)cant_threads);    
+    int thread_cant_nodes = ceil ((double)cant_nodes / (double)cant_threads); 
+    int k=0;
 
-    #pragma omp parallel//num_threads(cant_threads)
-    for(unsigned int i = 0; i < cant_nodes; i += thread_cant_nodes){
-        #pragma omp task
-        thread_work (i,i + (thread_cant_nodes-1) );
+    /*#pragma omp parallel num_threads(cant_threads)
+    {
+        #pragma omp task shared(k)
+        thread_work (omp_get_thread_num()*thread_cant_nodes, (omp_get_thread_num()*thread_cant_nodes )+ (thread_cant_nodes-1), k);
     }
     //#pragma omp taskwait
+    std::cout<<"Holis"<<ENDL;*/
+    deltaStepping();
     #pragma omp barrier
 
  /////////////////////////////////////////////////////////////////////////////
  // Finalize
  /////////////////////////////////////////////////////////////////////////////
 
-    for(unsigned int i = 0; i < cant_nodes; ++i)
-        printf ("%o : (%d, %d)", i, node_predecessor[i], distances[i]);
+    for(uint i = 0; i < cant_nodes; ++i)
+        std::cout<<i<<" : ("<<node_predecessor[i]<<", "<<distances[i]<<")"<<ENDL;
 
     return 0;
 }
@@ -122,21 +143,27 @@ int main (int argc, char** argv){
 /////No esta usando los indices, se me olvido, revisalo
 void thread_work (
         int first_index         /*indice de inicio del bloque de nodos*/, 
-        int last_index          /*indice de final del bloque de nodos*/){
-
-    #pragma omp parallel num_threads(cant_threads)
-
-    for (int k = 0; k != (MAX_DISTANCE/delta); ){         /* Epoca*/
+        int last_index          /*indice de final del bloque de nodos*/,
+        int &k){
+    
+    //int k=0;
+    //#pragma omp parallel num_threads(cant_threads) shared(k)
+    printf("((%d))\n",omp_get_thread_num());
+    for (; k < (MAX_DISTANCE/delta); ){         /* Epoca*/
         /*process*/
         while ( !buckets[k].empty() ){                 /*Fase*/
             std::vector<int> aux_bucket;
             
-            #pragma omp for
+            //#pragma omp for
             for (size_t u = 0; u < buckets[k].size (); ++u){ //// [ solo nodos entre first y last]
-                for (size_t v = 0; v < graph[u].size (); ++v){
-                    /*relax*/
-                    if (relax (buckets[k][u], graph[u][v].first)){
-                        aux_bucket.push_back (graph[u][v].first);
+                
+                if(buckets[k][u] >= first_index && buckets[k][u] <= last_index){
+                    for (size_t v = 0; v < graph[u].size (); ++v){
+                        /*relax*/
+                        printf("%d: %d\n",omp_get_thread_num(),buckets[k][u]);
+                        if (relax (buckets[k][u], graph[u][v].first)){
+                            aux_bucket.push_back (graph[u][v].first);
+                        }
                     }
                 }
             }
@@ -146,8 +173,64 @@ void thread_work (
             for (size_t  i = 0; i < temp_bucket.size (); ++i){
                 for (size_t j = 0; j < aux_bucket.size (); ++j){
                     if (temp_bucket[i] == aux_bucket[j])
+                        #pragma omp critical
                         buckets[k].push_back (temp_bucket[i]);
                 }
+            }
+        }
+        #pragma omp single
+        {k++;
+            while(buckets[k].empty() && k<buckets.size()){
+                k++;
+            }
+        }
+    }
+}
+
+void deltaStepping(){
+    int k=0;
+    #pragma omp parallel num_threads(cant_threads) shared(k, buckets, distances, node_predecessor, graph, COUT, delta) default(none)
+    for (; k < (MAX_DISTANCE/delta); ){         /* Epoca*/
+        /*process*/
+        while ( !buckets[k].empty() ){                 /*Fase*/
+            std::vector<int> aux_bucket;
+            
+            //#pragma omp parallel for default(none) shared(k,buckets,distances,node_predecessor,graph,COUT,delta,aux_bucket) num_threads(cant_threads)
+            #pragma omp for
+            for (size_t u = 0; u < buckets[k].size (); ++u){ //// [ solo nodos entre first y last]
+                int actual_u = buckets[k][u] ;
+                //if(actual_u >= first_index && actual_u <= last_index){
+                    for (size_t v = 0; v < graph[u].size (); ++v){
+                        /*relax*/
+                        int actual_v = graph[actual_u][v].first;
+                        if (relax (actual_u, actual_v)){
+                            //#pragma omp critical
+                            aux_bucket.push_back (actual_v);
+                        }
+                    }
+                //}
+            }
+            //Intersección
+            //#pragma omp single
+            //#pragma omp barrier
+            {
+                std::vector<int> temp_bucket(buckets[k]);
+                buckets[k].clear ();
+                for (size_t  i = 0; i < temp_bucket.size (); ++i){
+                    for (size_t j = 0; j < aux_bucket.size (); ++j){
+                        if (temp_bucket[i] == aux_bucket[j])
+                            #pragma omp critical
+                            buckets[k].push_back(temp_bucket[i]);
+                    }
+                }
+            }
+        }
+
+        #pragma omp single
+        {
+            k++;
+            while(buckets[k].empty() && k<buckets.size()){
+                k++;
             }
         }
     }
@@ -157,17 +240,39 @@ void thread_work (
 bool relax (int u, int v){
     uint old_bucket = floor ((double)distances[v] / (double)delta);
     int temp = distances[v];
-    distances[v] = std::min (distances[v], (distances[u] + graph[u][v].second));
+    int new_distance = distances[u] + graph[u][v].second;
+    if(new_distance < distances[v]){
+        #pragma omp critical
+        {
+            distances[v] = new_distance;
+            node_predecessor[v]=u;
+        }
+    }
     uint new_bucket = floor ((double)distances[v] / (double)delta);
 
     if (new_bucket < old_bucket){
-        buckets[new_bucket].push_back (v);
-        for (size_t i = 0; i < buckets[old_bucket].size (); ++i){
-            if (buckets[old_bucket][i] == v){
-                buckets[old_bucket].erase (buckets[old_bucket].begin () + i);
-                break;
+        #pragma omp critical
+        {
+            buckets[new_bucket].push_back(v);
+            for (size_t i = 0; i < buckets[old_bucket].size (); ++i){
+                if (buckets[old_bucket][i] == v){
+                    buckets[old_bucket].erase (buckets[old_bucket].begin () + i);
+                    break;
+                }
             }
         }
     }
     return (temp != distances[v]);
+}
+
+void printGraph(){
+    std::cout<<graph.size()<<ENDL;
+    for(uint i=0; i<graph.size(); ++i){
+        std::cout<<i<<" "<<graph[i].size()<<": ";
+        for(uint j=0; j<graph[i].size(); ++j){
+            std::cout<<i<<" "<<graph[i][j].first<<" "<<graph[i][j].second<<"  ";
+        }
+        std::cout<<ENDL;
+    }
+    
 }
