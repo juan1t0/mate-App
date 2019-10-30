@@ -56,28 +56,28 @@ int main (int argc, char** argv){
         printf ("Incorrect parameters \n");
         return 0;
     }*/
-    /*cant_threads        = atoi (argv[1]);
-    uint cant_nodes     = atoi (argv[2]);
-    uint cant_edges     = 0;
-    uint node_source    = atoi (argv[3]);
-    delta               = atoi (argv[4]);*/
-
-    std::cin>>cant_threads>>cant_nodes>>cant_edges>>node_source>>delta;
+    cant_threads = atoi (argv[1]);
+    cant_nodes = atoi (argv[2]);
+    cant_edges = 0;
+    node_source = atoi (argv[3]);
+    delta = atoi (argv[4]);
+    srand(0);
+    /*std::cin>>cant_threads>>cant_nodes>>cant_edges>>node_source>>delta;
     srand(0);
     graph.assign(cant_nodes,std::vector<std::pair<int,int> >(0));
     int a,b;
     for(uint i=0; i<cant_edges; ++i){
         std::cin>>a>>b;
-        graph[a].push_back(std::make_pair(b,rand()%256+1));
+        graph[a].push_back(std::make_pair(b,rand()%MAX_WEIGHT+1));
     }
 
-    COUT<<cant_threads<<" "<<cant_nodes<<" "<<cant_edges<<" "<<node_source<<" "<<delta<<ENDL;
+    COUT<<cant_threads<<" "<<cant_nodes<<" "<<cant_edges<<" "<<node_source<<" "<<delta<<ENDL;*/
 
  /////////////////////////////////////////////////////////////////////////////
  // Inicializar
  /////////////////////////////////////////////////////////////////////////////
 
-    /*graph.assign(cant_nodes,std::vector<std::pair<int,int> >(0));
+    graph.assign(cant_nodes,std::vector<std::pair<int,int> >(0));
     distances.assign(cant_nodes,INFINITO);
     node_predecessor.assign(cant_nodes,-1);
 
@@ -96,7 +96,7 @@ int main (int argc, char** argv){
             graph[node_aux].push_back (std::make_pair (i, weight) );
             cant_edges++;
         }
-    }*/
+    }
     /*printGraph();
     std::cout<<"|"<<graph[8].size()<<"|"<<std::endl;*/
  // ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ Puede mejorar, o variar para generar RMAT o para recibirlo externamente
@@ -196,10 +196,10 @@ void deltaStepping(){
             std::vector<int> aux_bucket;
             
             //#pragma omp parallel for default(none) shared(k,buckets,distances,node_predecessor,graph,COUT,delta,aux_bucket) num_threads(cant_threads)
+            printf("entro\n");
             #pragma omp for
             for (size_t u = 0; u < buckets[k].size (); ++u){ //// [ solo nodos entre first y last]
                 int actual_u = buckets[k][u] ;
-                //if(actual_u >= first_index && actual_u <= last_index){
                     for (size_t v = 0; v < graph[u].size (); ++v){
                         /*relax*/
                         int actual_v = graph[actual_u][v].first;
@@ -208,14 +208,15 @@ void deltaStepping(){
                             aux_bucket.push_back (actual_v);
                         }
                     }
-                //}
             }
+            printf("Salio\n");
             //Intersección
             //#pragma omp single
             //#pragma omp barrier
             {
                 std::vector<int> temp_bucket(buckets[k]);
-                buckets[k].clear ();
+                #pragma omp single
+                buckets[k].clear();
                 for (size_t  i = 0; i < temp_bucket.size (); ++i){
                     for (size_t j = 0; j < aux_bucket.size (); ++j){
                         if (temp_bucket[i] == aux_bucket[j])
