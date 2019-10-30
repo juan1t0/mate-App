@@ -182,7 +182,7 @@ void deltaStepping(){
                         /*relax*/
                         int actual_v = graph[actual_u][v].first;
                         if(graph[actual_u][actual_v].second>=delta ||
-                         (graph[actual_u][actual_v].second + distances[actual_v])/delta != k){
+                         (graph[actual_u][actual_v].second + distances[actual_v])/delta > k){
                             relax (actual_u, actual_v);
                         }
                     }
